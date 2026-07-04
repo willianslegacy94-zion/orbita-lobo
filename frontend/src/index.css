@@ -1,0 +1,19 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #cupom-impressao,
+  #cupom-impressao * {
+    visibility: visible;
+  }
+  #cupom-impressao {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+  }
+}
