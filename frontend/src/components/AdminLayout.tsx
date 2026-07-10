@@ -3,6 +3,7 @@ import { getSessao, limparSessao } from '../lib/auth';
 
 const LINKS = [
   { to: '/admin', label: 'Vendas do Dia', end: true },
+  { to: '/admin/estoque', label: 'Estoque', end: false },
   { to: '/admin/ranking-produtos', label: 'Ranking de Produtos', end: false },
   { to: '/admin/ranking-pagamentos', label: 'Ranking de Pagamentos', end: false },
   { to: '/admin/fiado', label: 'Fiado', end: false },

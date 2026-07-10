@@ -3,6 +3,7 @@ import { AdminLayout } from './components/AdminLayout';
 import { RotaProtegida } from './components/RotaProtegida';
 import { Login } from './pages/Login';
 import { PDV } from './pages/PDV';
+import { AdminEstoque } from './pages/admin/AdminEstoque';
 import { AdminFiado } from './pages/admin/AdminFiado';
 import { AdminRankingPagamentos } from './pages/admin/AdminRankingPagamentos';
 import { AdminRankingProdutos } from './pages/admin/AdminRankingProdutos';
@@ -30,6 +31,7 @@ function App() {
           }
         >
           <Route index element={<AdminVendas />} />
+          <Route path="estoque" element={<AdminEstoque />} />
           <Route path="ranking-produtos" element={<AdminRankingProdutos />} />
           <Route path="ranking-pagamentos" element={<AdminRankingPagamentos />} />
           <Route path="fiado" element={<AdminFiado />} />

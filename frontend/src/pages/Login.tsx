@@ -44,9 +44,9 @@ export function Login() {
         <p className="mb-6 text-center text-sm text-slate-400">Entrar no sistema</p>
 
         <label className="block text-xs font-semibold text-slate-400">
-          Email
+          Usuário
           <input
-            type="email"
+            type="text"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="mt-1 w-full rounded-md border border-onix-border bg-black/30 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-lobo-gold"

@@ -59,6 +59,101 @@ app.get('/api/produtos', autenticar, async (_req: Request, res: Response) => {
   }
 });
 
+interface ProdutoBody {
+  sku: string;
+  descricao: string;
+  categoria: string;
+  unidade_medida: 'UN' | 'M3' | 'KG' | 'MT';
+  peso_unitario_kg?: number;
+  qtd_atual?: number;
+  estoque_minimo?: number;
+  preco_custo?: number;
+  preco_venda?: number;
+}
+
+// POST /api/produtos - cadastra um novo produto no estoque (admin)
+app.post('/api/produtos', autenticar, exigirAdmin, async (req: Request<{}, {}, ProdutoBody>, res: Response) => {
+  const {
+    sku,
+    descricao,
+    categoria,
+    unidade_medida,
+    peso_unitario_kg = 0,
+    qtd_atual = 0,
+    estoque_minimo = 0,
+    preco_custo = 0,
+    preco_venda = 0,
+  } = req.body;
+
+  if (!sku?.trim() || !descricao?.trim() || !categoria?.trim() || !unidade_medida) {
+    res.status(400).json({ error: 'sku, descricao, categoria e unidade_medida são obrigatórios' });
+    return;
+  }
+
+  try {
+    const result = await pool.query(
+      `INSERT INTO produtos (sku, descricao, categoria, unidade_medida, peso_unitario_kg, qtd_atual, estoque_minimo, preco_custo, preco_venda)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       RETURNING *`,
+      [sku.trim(), descricao.trim(), categoria.trim(), unidade_medida, peso_unitario_kg, qtd_atual, estoque_minimo, preco_custo, preco_venda]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (error: unknown) {
+    if ((error as { code?: string }).code === '23505') {
+      res.status(409).json({ error: 'Já existe um produto com esse SKU' });
+      return;
+    }
+    console.error('Erro ao cadastrar produto:', error);
+    res.status(500).json({ error: 'Erro ao cadastrar produto' });
+  }
+});
+
+// PUT /api/produtos/:id - edita um produto existente, incluindo ajuste de estoque (admin)
+app.put('/api/produtos/:id', autenticar, exigirAdmin, async (req: Request<{ id: string }, {}, ProdutoBody>, res: Response) => {
+  const { id } = req.params;
+  const {
+    sku,
+    descricao,
+    categoria,
+    unidade_medida,
+    peso_unitario_kg = 0,
+    qtd_atual = 0,
+    estoque_minimo = 0,
+    preco_custo = 0,
+    preco_venda = 0,
+  } = req.body;
+
+  if (!sku?.trim() || !descricao?.trim() || !categoria?.trim() || !unidade_medida) {
+    res.status(400).json({ error: 'sku, descricao, categoria e unidade_medida são obrigatórios' });
+    return;
+  }
+
+  try {
+    const result = await pool.query(
+      `UPDATE produtos
+       SET sku = $1, descricao = $2, categoria = $3, unidade_medida = $4, peso_unitario_kg = $5,
+           qtd_atual = $6, estoque_minimo = $7, preco_custo = $8, preco_venda = $9, atualizado_em = CURRENT_TIMESTAMP
+       WHERE id = $10
+       RETURNING *`,
+      [sku.trim(), descricao.trim(), categoria.trim(), unidade_medida, peso_unitario_kg, qtd_atual, estoque_minimo, preco_custo, preco_venda, id]
+    );
+
+    if (result.rows.length === 0) {
+      res.status(404).json({ error: 'Produto não encontrado' });
+      return;
+    }
+
+    res.json(result.rows[0]);
+  } catch (error: unknown) {
+    if ((error as { code?: string }).code === '23505') {
+      res.status(409).json({ error: 'Já existe um produto com esse SKU' });
+      return;
+    }
+    console.error('Erro ao editar produto:', error);
+    res.status(500).json({ error: 'Erro ao editar produto' });
+  }
+});
+
 // GET /api/pedidos - lista vendas para o painel administrativo (admin)
 app.get('/api/pedidos', autenticar, exigirAdmin, async (_req: Request, res: Response) => {
   try {

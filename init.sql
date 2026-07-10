@@ -52,8 +52,8 @@ CREATE TABLE itens_pedido (
 -- INSERIR DADOS MOCK INICIAIS PARA TESTE LOCAL
 -- Senhas em texto plano (para referência): admin123 / caixa123 — já armazenadas como hash bcrypt
 INSERT INTO usuarios (nome, email, senha, perfil) VALUES
-('Gerente Lobo', 'admin@lobo.com', '$2a$10$cRywTBJl4JyV/OamCVabKOlxZXnV/KJDn/ECtZbJwICcpg9hnSD5W', 'ADMIN'),
-('Caixa Balcao 1', 'caixa@lobo.com', '$2a$10$SuiZvIchXU/48fjEaO2Mj.lrhGIQ6S/Q8DTqS4f3Q2KMgNP0be42m', 'VENDEDOR');
+('Gerente Lobo', 'admin', '$2a$10$cRywTBJl4JyV/OamCVabKOlxZXnV/KJDn/ECtZbJwICcpg9hnSD5W', 'ADMIN'),
+('Caixa Balcao 1', 'caixa', '$2a$10$SuiZvIchXU/48fjEaO2Mj.lrhGIQ6S/Q8DTqS4f3Q2KMgNP0be42m', 'VENDEDOR');
 
 INSERT INTO produtos (sku, descricao, categoria, unidade_medida, peso_unitario_kg, qtd_atual, estoque_minimo, preco_custo, preco_venda) VALUES
 ('CIM-VOT-50', 'Cimento Votoran Todas As Obras 50kg', 'Materiais Básicos', 'UN', 50.00, 200.00, 50.00, 28.00, 36.90),
