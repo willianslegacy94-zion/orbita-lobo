@@ -1,22 +1,6 @@
 version: '3.8'
 
 services:
-  db:
-    image: postgres:15-alpine
-    container_name: orbita-lobo-db
-    restart: always
-    environment:
-      POSTGRES_USER: lobo_admin
-      POSTGRES_PASSWORD: LoboSuperSenha2026
-      POSTGRES_DB: orbitalobo_db
-    ports:
-      - "5436:5432"
-    volumes:
-      - postgres_lobo_data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
-    networks:
-      - lobo-network
-
   backend:
     build:
       context: ./backend
@@ -26,7 +10,7 @@ services:
     ports:
       - "3002:3001"
     environment:
-      - DATABASE_URL=postgresql://lobo_admin:LoboSuperSenha2026@db:5432/orbitalobo_db
+      - DATABASE_URL=${DATABASE_URL}
       - PORT=3001
       - NODE_ENV=development
       - JWT_SECRET=lobo-dev-secret-troque-em-producao
@@ -35,8 +19,6 @@ services:
     volumes:
       - ./backend:/app
       - /app/node_modules
-    depends_on:
-      - db
     networks:
       - lobo-network
 
@@ -58,10 +40,6 @@ services:
       - backend
     networks:
       - lobo-network
-
-volumes:
-  postgres_lobo_data:
-    driver: local
 
 networks:
   lobo-network:
