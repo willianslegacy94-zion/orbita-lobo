@@ -1,0 +1,49 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    container_name: orbita-lobo-api
+    restart: always
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - PORT=3001
+      - NODE_ENV=production
+      - JWT_SECRET=${JWT_SECRET}
+    expose:
+      - "3001"
+    networks:
+      - lobo-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+      args:
+        VITE_API_URL: ""
+    container_name: orbita-lobo-web
+    restart: always
+    expose:
+      - "80"
+    depends_on:
+      - backend
+    networks:
+      - lobo-network
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: orbita-lobo-proxy
+    restart: always
+    ports:
+      - "127.0.0.1:5174:80"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - lobo-network
+
+networks:
+  lobo-network:
+    driver: bridge
