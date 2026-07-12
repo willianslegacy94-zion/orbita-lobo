@@ -1,4 +1,4 @@
-import { EMPRESA_CNPJ, EMPRESA_ENDERECO, EMPRESA_NOME } from '../config';
+import { EMPRESA_CNPJ, EMPRESA_ENDERECO, EMPRESA_NOME, EMPRESA_TELEFONE } from '../config';
 import { FORMA_PAGAMENTO_LABELS } from '../lib/formaPagamento';
 import type { ItemCarrinho, PagamentoPedido } from '../types';
 
@@ -27,6 +27,7 @@ export function Cupom({ dados, onFechar }: CupomProps) {
           <p className="text-lg font-extrabold">{EMPRESA_NOME}</p>
           <p className="text-xs">CNPJ: {EMPRESA_CNPJ}</p>
           <p className="text-xs">{EMPRESA_ENDERECO}</p>
+          <p className="text-xs">Tel: {EMPRESA_TELEFONE}</p>
           <p className="mt-2 text-xs text-gray-500">Comprovante de venda — não é documento fiscal</p>
         </div>
 
