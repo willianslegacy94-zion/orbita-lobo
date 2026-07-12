@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { EMPRESA_NOME } from '../../config';
+import { EMPRESA_NOME, EMPRESA_PIX } from '../../config';
 import { Badge } from '../../components/Badge';
 import { authFetch } from '../../lib/auth';
 import { linkWhatsapp } from '../../lib/formaPagamento';
@@ -74,7 +74,7 @@ export function AdminFiado() {
     const compras = cliente.pedidos.length === 1 ? '1 compra' : `${cliente.pedidos.length} compras`;
     return `Olá, ${cliente.nome}! Aqui é do ${EMPRESA_NOME}. Seu saldo devedor (fiado) é de R$ ${cliente.saldoDevedor.toFixed(
       2
-    )}, referente a ${compras}. Podemos combinar o pagamento?`;
+    )}, referente a ${compras}.\n\nChave Pix para pagamento: ${EMPRESA_PIX}`;
   }
 
   return (
