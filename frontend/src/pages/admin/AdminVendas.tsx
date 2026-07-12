@@ -67,9 +67,13 @@ export function AdminVendas() {
                   </td>
                   <td className="px-4 py-3 text-white">{venda.cliente_nome}</td>
                   <td className="px-4 py-3">
-                    <Badge tom={venda.forma_pagamento === 'FIADO' ? 'warning' : 'neutral'}>
-                      {FORMA_PAGAMENTO_LABELS[venda.forma_pagamento]}
-                    </Badge>
+                    <div className="flex flex-wrap gap-1">
+                      {venda.pagamentos.map((pagamento, indice) => (
+                        <Badge key={indice} tom={pagamento.forma_pagamento === 'FIADO' ? 'warning' : 'neutral'}>
+                          {FORMA_PAGAMENTO_LABELS[pagamento.forma_pagamento]}
+                        </Badge>
+                      ))}
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-right font-semibold text-lobo-gold">
                     R$ {Number(venda.total).toFixed(2)}

@@ -30,10 +30,16 @@ export function AdminFiado() {
     carregarPedidos();
   }, []);
 
-  const fiados = pedidos.filter((p) => p.forma_pagamento === 'FIADO');
+  function valorFiado(pedido: Pedido): number {
+    return pedido.pagamentos
+      .filter((pg) => pg.forma_pagamento === 'FIADO')
+      .reduce((acc, pg) => acc + Number(pg.valor), 0);
+  }
+
+  const fiados = pedidos.filter((p) => p.pagamentos.some((pg) => pg.forma_pagamento === 'FIADO'));
   const pendentes = fiados.filter((p) => !p.fiado_pago);
   const pagos = fiados.filter((p) => p.fiado_pago);
-  const totalPendente = pendentes.reduce((acc, p) => acc + Number(p.total), 0);
+  const totalPendente = pendentes.reduce((acc, p) => acc + valorFiado(p), 0);
 
   const clientesPendentes = useMemo(() => {
     const mapa = new Map<string, SaldoCliente>();
@@ -47,7 +53,7 @@ export function AdminFiado() {
         saldoDevedor: 0,
       };
       grupo.pedidos.push(pedido);
-      grupo.saldoDevedor += Number(pedido.total);
+      grupo.saldoDevedor += valorFiado(pedido);
       mapa.set(chave, grupo);
     }
     return Array.from(mapa.values()).sort((a, b) => b.saldoDevedor - a.saldoDevedor);
@@ -122,7 +128,7 @@ export function AdminFiado() {
                   <div key={pedido.id} className="flex items-center justify-between text-sm">
                     <span className="text-slate-300">
                       {new Date(pedido.criado_em).toLocaleDateString('pt-BR')} — R${' '}
-                      {Number(pedido.total).toFixed(2)}
+                      {valorFiado(pedido).toFixed(2)}
                     </span>
                     <button
                       type="button"
@@ -151,7 +157,7 @@ export function AdminFiado() {
             >
               <span className="text-sm text-white">{pedido.cliente_nome}</span>
               <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-slate-300">R$ {Number(pedido.total).toFixed(2)}</span>
+                <span className="text-sm font-semibold text-slate-300">R$ {valorFiado(pedido).toFixed(2)}</span>
                 <Badge tom="success">Pago</Badge>
               </div>
             </div>

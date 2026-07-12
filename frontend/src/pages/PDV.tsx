@@ -8,7 +8,9 @@ import { FiltroCategorias } from '../components/FiltroCategorias';
 import { ModalMetragem } from '../components/ModalMetragem';
 import { ProdutoCard } from '../components/ProdutoCard';
 import { Toast } from '../components/Toast';
-import type { FormaPagamento, ItemCarrinho, Produto, StatusEnvio } from '../types';
+import type { FormaPagamento, ItemCarrinho, PagamentoPedido, Produto, StatusEnvio } from '../types';
+
+const TOLERANCIA_CENTAVOS = 0.01;
 
 export function PDV() {
   const navigate = useNavigate();
@@ -22,7 +24,9 @@ export function PDV() {
 
   const [clienteNome, setClienteNome] = useState('');
   const [clienteTelefone, setClienteTelefone] = useState('');
-  const [formaPagamento, setFormaPagamento] = useState<FormaPagamento>('DINHEIRO');
+  const [pagamentos, setPagamentos] = useState<PagamentoPedido[]>([]);
+  const [formaSelecionada, setFormaSelecionada] = useState<FormaPagamento>('DINHEIRO');
+  const [valorAdicionar, setValorAdicionar] = useState('');
 
   const [statusEnvio, setStatusEnvio] = useState<StatusEnvio>('idle');
   const [mensagemEnvio, setMensagemEnvio] = useState<string | null>(null);
@@ -91,11 +95,27 @@ export function PDV() {
   }
 
   const total = carrinho.reduce((acc, item) => acc + item.quantidade * Number(item.produto.preco_venda), 0);
+  const totalPago = pagamentos.reduce((acc, p) => acc + p.valor, 0);
+  const restante = total - totalPago;
+  const temFiado = pagamentos.some((p) => p.forma_pagamento === 'FIADO');
+  const pagamentoCompleto = pagamentos.length > 0 && Math.abs(restante) < TOLERANCIA_CENTAVOS;
+
+  function adicionarPagamento() {
+    const valor = Number(valorAdicionar.replace(',', '.'));
+    if (!valor || valor <= 0 || valor > restante + TOLERANCIA_CENTAVOS) return;
+
+    setPagamentos((atual) => [...atual, { forma_pagamento: formaSelecionada, valor: Math.min(valor, restante) }]);
+    setValorAdicionar('');
+  }
+
+  function removerPagamento(indice: number) {
+    setPagamentos((atual) => atual.filter((_, i) => i !== indice));
+  }
 
   async function finalizarPedido() {
-    if (carrinho.length === 0) return;
+    if (carrinho.length === 0 || !pagamentoCompleto) return;
 
-    if (formaPagamento === 'FIADO' && (!clienteNome.trim() || !clienteTelefone.trim())) {
+    if (temFiado && (!clienteNome.trim() || !clienteTelefone.trim())) {
       setStatusEnvio('erro');
       setMensagemEnvio('Fiado exige nome e telefone do cliente.');
       return;
@@ -106,8 +126,8 @@ export function PDV() {
 
     const payload = {
       cliente_nome: clienteNome.trim() || undefined,
-      cliente_telefone: formaPagamento === 'FIADO' ? clienteTelefone.trim() : undefined,
-      forma_pagamento: formaPagamento,
+      cliente_telefone: temFiado ? clienteTelefone.trim() : undefined,
+      pagamentos,
       itens: carrinho.map((item) => ({
         produto_id: item.produto.id,
         quantidade: item.quantidade,
@@ -135,14 +155,16 @@ export function PDV() {
         pedidoId: pedidoCriado.id,
         criadoEm: pedidoCriado.criado_em,
         clienteNome: clienteNome.trim() || 'Cliente Balcão',
-        formaPagamento,
+        pagamentos,
         itens: carrinho,
         total,
       });
       setCarrinho([]);
       setClienteNome('');
       setClienteTelefone('');
-      setFormaPagamento('DINHEIRO');
+      setPagamentos([]);
+      setFormaSelecionada('DINHEIRO');
+      setValorAdicionar('');
     } catch (err) {
       setStatusEnvio('erro');
       setMensagemEnvio(err instanceof Error ? err.message : 'Não foi possível salvar. Tente novamente.');
@@ -212,7 +234,7 @@ export function PDV() {
         <aside className="flex flex-col rounded-lg border border-onix-border bg-onix-surface p-4">
           <h2 className="mb-3 text-lg font-bold text-lobo-gold">Venda Atual</h2>
 
-          {formaPagamento !== 'FIADO' && (
+          {!temFiado && (
             <input
               type="text"
               placeholder="Cliente (opcional)"
@@ -244,9 +266,9 @@ export function PDV() {
                   <button
                     key={forma}
                     type="button"
-                    onClick={() => setFormaPagamento(forma)}
+                    onClick={() => setFormaSelecionada(forma)}
                     className={`rounded-md py-1.5 text-xs font-semibold transition ${
-                      formaPagamento === forma ? 'bg-lobo-gold text-black' : 'bg-black/30 text-slate-300'
+                      formaSelecionada === forma ? 'bg-lobo-gold text-black' : 'bg-black/30 text-slate-300'
                     }`}
                   >
                     {FORMA_PAGAMENTO_LABELS[forma]}
@@ -255,7 +277,51 @@ export function PDV() {
               </div>
             </label>
 
-            {formaPagamento === 'FIADO' && (
+            <div className="flex gap-1.5">
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder={`Valor (restam R$ ${Math.max(restante, 0).toFixed(2)})`}
+                value={valorAdicionar}
+                onChange={(e) => setValorAdicionar(e.target.value)}
+                disabled={restante <= TOLERANCIA_CENTAVOS}
+                className="w-full rounded-md border border-onix-border bg-black/30 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-lobo-gold disabled:opacity-40"
+              />
+              <button
+                type="button"
+                onClick={adicionarPagamento}
+                disabled={restante <= TOLERANCIA_CENTAVOS || !valorAdicionar}
+                className="shrink-0 rounded-md bg-black/30 px-3 py-2 text-sm font-semibold text-lobo-gold hover:bg-onix-surfaceHover disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                + Adicionar
+              </button>
+            </div>
+
+            {pagamentos.length > 0 && (
+              <div className="space-y-1.5">
+                {pagamentos.map((pagamento, indice) => (
+                  <div
+                    key={indice}
+                    className="flex items-center justify-between rounded-md bg-black/20 px-3 py-1.5 text-sm"
+                  >
+                    <span className="text-slate-300">{FORMA_PAGAMENTO_LABELS[pagamento.forma_pagamento]}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-white">R$ {pagamento.valor.toFixed(2)}</span>
+                      <button
+                        type="button"
+                        onClick={() => removerPagamento(indice)}
+                        className="text-xs font-bold text-red-400 hover:text-red-300"
+                      >
+                        Remover
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {temFiado && (
               <div className="space-y-2 rounded-md border border-lobo-gold/30 bg-black/20 p-3">
                 <p className="text-xs font-semibold text-lobo-gold">Fiado — nome e telefone são obrigatórios</p>
                 <label className="block text-xs font-semibold text-slate-400">
@@ -290,9 +356,15 @@ export function PDV() {
               <span>R$ {total.toFixed(2)}</span>
             </div>
 
+            {pagamentos.length > 0 && !pagamentoCompleto && (
+              <p className="text-xs font-semibold text-red-400">
+                Faltam R$ {Math.max(restante, 0).toFixed(2)} para cobrir o total da venda.
+              </p>
+            )}
+
             <button
               onClick={finalizarPedido}
-              disabled={carrinho.length === 0 || statusEnvio === 'enviando'}
+              disabled={carrinho.length === 0 || !pagamentoCompleto || statusEnvio === 'enviando'}
               className="w-full rounded-md bg-lobo-gold py-2 font-bold text-black transition hover:bg-lobo-goldDark disabled:cursor-not-allowed disabled:opacity-40"
             >
               {statusEnvio === 'enviando' ? 'Salvando...' : 'Finalizar Venda'}

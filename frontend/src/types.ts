@@ -20,12 +20,17 @@ export interface ItemCarrinho {
 export type FormaPagamento = 'DINHEIRO' | 'PIX' | 'DEBITO' | 'CREDITO' | 'FIADO';
 export type StatusEnvio = 'idle' | 'enviando' | 'sucesso' | 'erro';
 
+export interface PagamentoPedido {
+  forma_pagamento: FormaPagamento;
+  valor: number;
+}
+
 export interface Pedido {
   id: number;
   cliente_nome: string;
   cliente_telefone: string | null;
   vendedor_id: number;
-  forma_pagamento: FormaPagamento;
+  pagamentos: PagamentoPedido[];
   total: string;
   fiado_pago: boolean;
   criado_em: string;
@@ -40,5 +45,4 @@ export interface ItemPedidoDetalhado {
   produto_descricao: string;
   unidade_medida: string;
   criado_em: string;
-  forma_pagamento: FormaPagamento;
 }

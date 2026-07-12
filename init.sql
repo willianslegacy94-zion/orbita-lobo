@@ -32,9 +32,8 @@ CREATE TABLE produtos (
 CREATE TABLE pedidos (
     id SERIAL PRIMARY KEY,
     cliente_nome VARCHAR(150) DEFAULT 'Cliente Balcão',
-    cliente_telefone VARCHAR(20), -- obrigatório quando forma_pagamento = 'FIADO'
+    cliente_telefone VARCHAR(20), -- obrigatório quando há pagamento em FIADO
     vendedor_id INT REFERENCES usuarios(id),
-    forma_pagamento forma_pagamento_pedido NOT NULL DEFAULT 'DINHEIRO',
     total NUMERIC(10,2) NOT NULL DEFAULT 0.00,
     fiado_pago BOOLEAN NOT NULL DEFAULT FALSE,
     criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -48,6 +47,16 @@ CREATE TABLE itens_pedido (
     quantidade NUMERIC(10,2) NOT NULL,
     preco_unitario NUMERIC(10,2) NOT NULL
 );
+
+-- 5. PAGAMENTOS DO PEDIDO (Suporte a mais de uma forma de pagamento por venda)
+CREATE TABLE pagamentos_pedido (
+    id SERIAL PRIMARY KEY,
+    pedido_id INT NOT NULL REFERENCES pedidos(id) ON DELETE CASCADE,
+    forma_pagamento forma_pagamento_pedido NOT NULL,
+    valor NUMERIC(10,2) NOT NULL CHECK (valor > 0)
+);
+
+CREATE INDEX idx_pagamentos_pedido_pedido_id ON pagamentos_pedido(pedido_id);
 
 -- INSERIR DADOS MOCK INICIAIS PARA TESTE LOCAL
 -- Senhas em texto plano (para referência): admin123 / caixa123 — já armazenadas como hash bcrypt

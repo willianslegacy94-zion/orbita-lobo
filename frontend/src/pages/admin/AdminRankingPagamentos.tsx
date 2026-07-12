@@ -32,14 +32,16 @@ export function AdminRankingPagamentos() {
 
     const mapa = new Map<FormaPagamento, LinhaRanking>();
     for (const pedido of pedidosNoPeriodo) {
-      const atual = mapa.get(pedido.forma_pagamento) || {
-        forma: pedido.forma_pagamento,
-        quantidade: 0,
-        valorTotal: 0,
-      };
-      atual.quantidade += 1;
-      atual.valorTotal += Number(pedido.total);
-      mapa.set(pedido.forma_pagamento, atual);
+      for (const pagamento of pedido.pagamentos) {
+        const atual = mapa.get(pagamento.forma_pagamento) || {
+          forma: pagamento.forma_pagamento,
+          quantidade: 0,
+          valorTotal: 0,
+        };
+        atual.quantidade += 1;
+        atual.valorTotal += Number(pagamento.valor);
+        mapa.set(pagamento.forma_pagamento, atual);
+      }
     }
 
     const total = pedidosNoPeriodo.reduce((acc, p) => acc + Number(p.total), 0);
@@ -68,7 +70,7 @@ export function AdminRankingPagamentos() {
               <tr>
                 <th className="px-4 py-3">#</th>
                 <th className="px-4 py-3">Forma de pagamento</th>
-                <th className="px-4 py-3 text-right">Nº de vendas</th>
+                <th className="px-4 py-3 text-right">Nº de pagamentos</th>
                 <th className="px-4 py-3 text-right">Valor total</th>
                 <th className="px-4 py-3 text-right">% do faturamento</th>
               </tr>

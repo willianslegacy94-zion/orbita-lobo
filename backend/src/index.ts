@@ -157,7 +157,16 @@ app.put('/api/produtos/:id', autenticar, exigirAdmin, async (req: Request<{ id: 
 // GET /api/pedidos - lista vendas para o painel administrativo (admin)
 app.get('/api/pedidos', autenticar, exigirAdmin, async (_req: Request, res: Response) => {
   try {
-    const result = await pool.query('SELECT * FROM pedidos ORDER BY criado_em DESC');
+    const result = await pool.query(
+      `SELECT pe.*,
+              COALESCE(
+                (SELECT json_agg(json_build_object('forma_pagamento', pp.forma_pagamento, 'valor', pp.valor) ORDER BY pp.id)
+                 FROM pagamentos_pedido pp WHERE pp.pedido_id = pe.id),
+                '[]'
+              ) AS pagamentos
+       FROM pedidos pe
+       ORDER BY pe.criado_em DESC`
+    );
     res.json(result.rows);
   } catch (error) {
     console.error('Erro ao listar pedidos:', error);
@@ -171,7 +180,7 @@ app.get('/api/itens-pedido', autenticar, exigirAdmin, async (_req: Request, res:
     const result = await pool.query(
       `SELECT ip.id, ip.pedido_id, ip.produto_id, ip.quantidade, ip.preco_unitario,
               p.descricao AS produto_descricao, p.unidade_medida,
-              pe.criado_em, pe.forma_pagamento
+              pe.criado_em
        FROM itens_pedido ip
        JOIN produtos p ON p.id = ip.produto_id
        JOIN pedidos pe ON pe.id = ip.pedido_id
@@ -184,13 +193,15 @@ app.get('/api/itens-pedido', autenticar, exigirAdmin, async (_req: Request, res:
   }
 });
 
-// PATCH /api/pedidos/:id/pagar - marca uma venda fiado como paga (admin)
+// PATCH /api/pedidos/:id/pagar - marca uma venda com pagamento fiado como paga (admin)
 app.patch('/api/pedidos/:id/pagar', autenticar, exigirAdmin, async (req: Request<{ id: string }>, res: Response) => {
   const { id } = req.params;
 
   try {
     const result = await pool.query(
-      `UPDATE pedidos SET fiado_pago = TRUE WHERE id = $1 AND forma_pagamento = 'FIADO' RETURNING *`,
+      `UPDATE pedidos SET fiado_pago = TRUE
+       WHERE id = $1 AND EXISTS (SELECT 1 FROM pagamentos_pedido pp WHERE pp.pedido_id = pedidos.id AND pp.forma_pagamento = 'FIADO')
+       RETURNING *`,
       [id]
     );
 
@@ -214,16 +225,23 @@ interface ItemPedidoInput {
 
 type FormaPagamento = 'DINHEIRO' | 'PIX' | 'DEBITO' | 'CREDITO' | 'FIADO';
 
+interface PagamentoInput {
+  forma_pagamento: FormaPagamento;
+  valor: number;
+}
+
 interface CriarPedidoBody {
   cliente_nome?: string;
   cliente_telefone?: string;
-  forma_pagamento?: FormaPagamento;
+  pagamentos: PagamentoInput[];
   itens: ItemPedidoInput[];
 }
 
+const TOLERANCIA_CENTAVOS = 0.01;
+
 // POST /api/pedidos - registra uma venda do balcão (caixa e admin autenticados)
 app.post('/api/pedidos', autenticar, async (req: Request<{}, {}, CriarPedidoBody>, res: Response) => {
-  const { cliente_nome, cliente_telefone, forma_pagamento = 'DINHEIRO', itens } = req.body;
+  const { cliente_nome, cliente_telefone, pagamentos, itens } = req.body;
   const vendedor_id = req.usuario!.id;
 
   if (!itens || itens.length === 0) {
@@ -231,8 +249,28 @@ app.post('/api/pedidos', autenticar, async (req: Request<{}, {}, CriarPedidoBody
     return;
   }
 
-  if (forma_pagamento === 'FIADO' && (!cliente_nome?.trim() || !cliente_telefone?.trim())) {
-    res.status(400).json({ error: 'Nome e telefone do cliente são obrigatórios para venda fiado' });
+  if (!pagamentos || pagamentos.length === 0) {
+    res.status(400).json({ error: 'pagamentos são obrigatórios' });
+    return;
+  }
+
+  if (pagamentos.some((p) => !p.forma_pagamento || !(p.valor > 0))) {
+    res.status(400).json({ error: 'Cada pagamento precisa de forma_pagamento e valor maior que zero' });
+    return;
+  }
+
+  const total = itens.reduce((acc, item) => acc + item.quantidade * item.preco_unitario, 0);
+  const totalPago = pagamentos.reduce((acc, p) => acc + p.valor, 0);
+
+  if (Math.abs(totalPago - total) > TOLERANCIA_CENTAVOS) {
+    res.status(400).json({ error: 'A soma dos pagamentos precisa ser igual ao total da venda' });
+    return;
+  }
+
+  const temFiado = pagamentos.some((p) => p.forma_pagamento === 'FIADO');
+
+  if (temFiado && (!cliente_nome?.trim() || !cliente_telefone?.trim())) {
+    res.status(400).json({ error: 'Nome e telefone do cliente são obrigatórios para venda com fiado' });
     return;
   }
 
@@ -241,16 +279,22 @@ app.post('/api/pedidos', autenticar, async (req: Request<{}, {}, CriarPedidoBody
   try {
     await client.query('BEGIN');
 
-    const total = itens.reduce((acc, item) => acc + item.quantidade * item.preco_unitario, 0);
-
     const pedidoResult = await client.query(
-      `INSERT INTO pedidos (cliente_nome, cliente_telefone, vendedor_id, forma_pagamento, total)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO pedidos (cliente_nome, cliente_telefone, vendedor_id, total)
+       VALUES ($1, $2, $3, $4)
        RETURNING *`,
-      [cliente_nome?.trim() || 'Cliente Balcão', cliente_telefone || null, vendedor_id, forma_pagamento, total]
+      [cliente_nome?.trim() || 'Cliente Balcão', cliente_telefone || null, vendedor_id, total]
     );
 
     const pedido = pedidoResult.rows[0];
+
+    for (const pagamento of pagamentos) {
+      await client.query(
+        `INSERT INTO pagamentos_pedido (pedido_id, forma_pagamento, valor)
+         VALUES ($1, $2, $3)`,
+        [pedido.id, pagamento.forma_pagamento, pagamento.valor]
+      );
+    }
 
     for (const item of itens) {
       await client.query(
@@ -267,7 +311,7 @@ app.post('/api/pedidos', autenticar, async (req: Request<{}, {}, CriarPedidoBody
 
     await client.query('COMMIT');
 
-    res.status(201).json({ ...pedido, itens });
+    res.status(201).json({ ...pedido, pagamentos, itens });
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Erro ao registrar venda:', error);

@@ -1,12 +1,12 @@
 import { EMPRESA_CNPJ, EMPRESA_ENDERECO, EMPRESA_NOME } from '../config';
 import { FORMA_PAGAMENTO_LABELS } from '../lib/formaPagamento';
-import type { FormaPagamento, ItemCarrinho } from '../types';
+import type { ItemCarrinho, PagamentoPedido } from '../types';
 
 export interface ComprovanteData {
   pedidoId: number;
   criadoEm: string;
   clienteNome: string;
-  formaPagamento: FormaPagamento;
+  pagamentos: PagamentoPedido[];
   itens: ItemCarrinho[];
   total: number;
 }
@@ -36,7 +36,11 @@ export function Cupom({ dados, onFechar }: CupomProps) {
           <p>Venda #{dados.pedidoId}</p>
           <p>{new Date(dados.criadoEm).toLocaleString('pt-BR')}</p>
           <p>Cliente: {dados.clienteNome}</p>
-          <p>Pagamento: {FORMA_PAGAMENTO_LABELS[dados.formaPagamento]}</p>
+          {dados.pagamentos.map((pagamento, indice) => (
+            <p key={indice}>
+              Pagamento: {FORMA_PAGAMENTO_LABELS[pagamento.forma_pagamento]} — R$ {pagamento.valor.toFixed(2)}
+            </p>
+          ))}
         </div>
 
         <div className="my-3 border-t border-dashed border-gray-400" />
